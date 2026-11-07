@@ -3,6 +3,7 @@ package com.sparky.tvmesaj;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
@@ -21,10 +22,19 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+
+import java.util.HashMap;
+import java.util.Map;
+
 /** TV'de acilan kurulum ekrani: telefondan girilecek adresi ve izin durumunu gosterir. */
 public class MainActivity extends Activity {
 
     private TextView url;
+    private ImageView qr;
     private TextView status;
     private TextView help;
     private Button permBtn;
@@ -56,13 +66,34 @@ public class MainActivity extends Activity {
         head.addView(title);
         root.addView(head);
 
-        TextView step = text("Telefonun bu TV ile aynı Wi-Fi'da olsun ve tarayıcıda şu adresi aç:",
-                18, 0xFFCFE3F5, false);
-        step.setPadding(0, dp(24), 0, dp(6));
-        root.addView(step);
+        // QR kod + adres yan yana
+        LinearLayout qrRow = new LinearLayout(this);
+        qrRow.setGravity(Gravity.CENTER_VERTICAL);
+        qrRow.setPadding(0, dp(24), 0, 0);
 
-        url = text("", 40, 0xFF8FE3FF, true);
-        root.addView(url);
+        qr = new ImageView(this);
+        GradientDrawable qrBg = new GradientDrawable();
+        qrBg.setColor(0xFFFFFFFF);
+        qrBg.setCornerRadius(dp(16));
+        qr.setBackground(qrBg);
+        qr.setPadding(dp(10), dp(10), dp(10), dp(10));
+        qrRow.addView(qr, new LinearLayout.LayoutParams(dp(200), dp(200)));
+
+        LinearLayout info = new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.setPadding(dp(28), 0, 0, 0);
+        TextView step = text("📱 Telefonun kamerasıyla QR kodu okut",
+                22, 0xFFFFFFFF, true);
+        info.addView(step);
+        TextView step2 = text("Telefon bu TV ile aynı Wi-Fi'da olmalı. Okutamazsan tarayıcıya şunu yaz:",
+                16, 0xFFCFE3F5, false);
+        step2.setPadding(0, dp(8), 0, dp(6));
+        info.addView(step2);
+        url = text("", 34, 0xFF8FE3FF, true);
+        info.addView(url);
+        qrRow.addView(info, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        root.addView(qrRow);
 
         status = text("", 18, 0xFFFFFFFF, false);
         status.setPadding(0, dp(18), 0, dp(12));
@@ -90,7 +121,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        url.setText(MessageService.serverUrl());
+        String address = MessageService.serverUrl();
+        url.setText(address);
+        Bitmap code = makeQr(address, dp(180));
+        if (code != null) qr.setImageBitmap(code);
         boolean ok = OverlayManager.canDraw(this);
         if (ok) {
             status.setText("✅ Hazır! Film izlerken de, menüdeyken de mesajlar ekranda görünecek.");
@@ -128,6 +162,25 @@ public class MainActivity extends Activity {
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, "Bu TV'de izin ekranı yok, aşağıdaki adb komutunu kullanın",
                     Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private static Bitmap makeQr(String content, int size) {
+        try {
+            Map<EncodeHintType, Object> hints = new HashMap<>();
+            hints.put(EncodeHintType.MARGIN, 1);
+            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+            BitMatrix m = new QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size, hints);
+            int w = m.getWidth(), h = m.getHeight();
+            int[] px = new int[w * h];
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    px[y * w + x] = m.get(x, y) ? 0xFF0B2540 : 0xFFFFFFFF;
+                }
+            }
+            return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888);
+        } catch (Exception e) {
+            return null;
         }
     }
 

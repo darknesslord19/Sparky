@@ -24,7 +24,7 @@ Alternatif: Android Studio ile klasörü aç → Build → Build APK(s).
 
 ## 3) Mesaj gönderme
 - Telefon TV ile aynı Wi-Fi'da olsun.
-- TV'deki ekranda yazan adresi (ör. `http://192.168.1.34:8080`) telefonda Chrome'da aç,
+- TV ekranındaki QR kodu telefon kamerasıyla okut ya da ekranda yazan adresi (ör. `http://192.168.1.34:8080`) telefonda Chrome'da aç,
   ana ekrana ekle → artık uygulama gibi kullanırsın.
 - Yazı / Resim / Sesli sekmelerinden gönder; ekranda kalma süresi ve konum (alt/orta/üst) seçilebilir.
 

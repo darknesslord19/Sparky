@@ -25,3 +25,8 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+dependencies {
+    // QR kod uretimi (3.3.x eski Android TV'lerle de uyumlu)
+    implementation 'com.google.zxing:core:3.3.3'
+}
