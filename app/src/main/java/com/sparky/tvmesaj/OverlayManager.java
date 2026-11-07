@@ -35,6 +35,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -148,7 +150,8 @@ public class OverlayManager {
     private void showText(Msg m) {
         View banner = buildBanner(m.name, m.text);
         addWindow(banner, false);
-        hideLater(banner, m.seconds * 1000L);
+        long typing = typeIn(banner, banner, 450);
+        hideLater(banner, typing + m.seconds * 1000L);
     }
 
     private void showImage(Msg m) {
@@ -176,9 +179,11 @@ public class OverlayManager {
             col.addView(card, lp);
         }
         String t = TextUtils.isEmpty(m.text) ? "📷 Bir fotoğraf gönderdi" : m.text;
-        col.addView(buildBanner(m.name, t));
+        View banner = buildBanner(m.name, t);
+        col.addView(banner);
         addWindow(col, false);
-        hideLater(col, m.seconds * 1000L);
+        long typing = typeIn(col, banner, 450);
+        hideLater(col, typing + m.seconds * 1000L);
     }
 
     private void showAudio(Msg m) {
@@ -299,13 +304,16 @@ public class OverlayManager {
         }
     }
 
-    /** "Sparky ile Mesaj: ...." cam gorunumlu balon */
+    /**
+     * "Sparky ile Mesaj: ...." cam gorunumlu balon.
+     * Once sadece ikon gorunur, yazi typeIn() ile daktilo gibi yazilir.
+     */
     private View buildBanner(String name, String text) {
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setBackground(glass(dp(20)));
-        row.setPadding(dp(26), dp(14), dp(14), dp(14));
+        row.setBackground(glass(dp(18)));
+        row.setPadding(dp(9), dp(9), dp(9), dp(9));
 
         TextView tv = new TextView(ctx);
         SpannableStringBuilder sb = new SpannableStringBuilder();
@@ -313,19 +321,66 @@ public class OverlayManager {
         sb.append(head);
         sb.setSpan(new StyleSpan(Typeface.BOLD), 0, head.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         sb.append(text);
-        tv.setText(sb);
+        tv.setTag(sb);
+        tv.setText("");
+        tv.setVisibility(View.GONE);
         tv.setTextColor(0xFFFFFFFF);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
-        tv.setShadowLayer(4, 0, 1, 0x66000000);
-        tv.setMaxWidth((int) (screenW() * 0.72f));
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        tv.setShadowLayer(3, 0, 1, 0x55000000);
+        tv.setMaxWidth((int) (screenW() * 0.70f));
         tv.setMaxLines(4);
-        tv.setEllipsize(TextUtils.TruncateAt.END);
-        row.addView(tv);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tlp.leftMargin = dp(14);
+        tlp.rightMargin = dp(14);
+        row.addView(tv, tlp);
+        row.setTag(tv);
 
-        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(dp(48), dp(48));
-        ilp.leftMargin = dp(18);
-        row.addView(sparkyIcon(dp(48)), ilp);
+        ImageView icon = sparkyIcon(dp(44));
+        GradientDrawable ibg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xFF4F8DCC, 0xFF2F68A8});
+        ibg.setCornerRadius(dp(12));
+        ibg.setStroke(dp(1), 0xB3FFFFFF);
+        icon.setBackground(ibg);
+        row.addView(icon, new LinearLayout.LayoutParams(dp(44), dp(44)));
         return row;
+    }
+
+    /**
+     * Balondaki yaziyi harf harf (daktilo gibi) yazar. Balon yazi uzadikca
+     * ortadan iki yana genisler. Toplam animasyon suresini ms olarak dondurur.
+     */
+    private long typeIn(final View owner, View banner, long startDelay) {
+        final TextView tv = (TextView) banner.getTag();
+        final CharSequence full = (CharSequence) tv.getTag();
+        final String s = full.toString();
+        final int count = s.codePointCount(0, s.length());
+        final long charMs = count > 90 ? 22 : (count > 50 ? 32 : 45);
+        final int[] idx = {0};
+
+        main.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (current != owner || idx[0] >= s.length()) return;
+                idx[0] += Character.charCount(s.codePointAt(idx[0]));
+                // emoji parcalarini (renk/ZWJ) tek seferde yaz
+                while (idx[0] < s.length()) {
+                    int cp = s.codePointAt(idx[0]);
+                    if (cp == 0xFE0F || (cp >= 0x1F3FB && cp <= 0x1F3FF)) {
+                        idx[0] += Character.charCount(cp);
+                    } else if (cp == 0x200D) {
+                        idx[0] += Character.charCount(cp);
+                        if (idx[0] < s.length()) idx[0] += Character.charCount(s.codePointAt(idx[0]));
+                    } else {
+                        break;
+                    }
+                }
+                tv.setVisibility(View.VISIBLE);
+                tv.setText(full.subSequence(0, idx[0]));
+                if (idx[0] < s.length()) main.postDelayed(this, charMs);
+            }
+        }, startDelay);
+        return startDelay + count * charMs + 200;
     }
 
     private ImageView sparkyIcon(int size) {
@@ -353,9 +408,9 @@ public class OverlayManager {
 
     private GradientDrawable glass(int radius) {
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xC0627E94, 0xC0435C72});
+                new int[]{0xD99CC0E2, 0xD96F9CCB});
         g.setCornerRadius(radius);
-        g.setStroke(dp(1), 0x99FFFFFF);
+        g.setStroke(dp(1), 0xCCFFFFFF);
         return g;
     }
 
@@ -389,7 +444,7 @@ public class OverlayManager {
                         | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 PixelFormat.TRANSLUCENT);
 
-        String pos = prefs.getString("pos", "bottom");
+        String pos = prefs.getString("pos", "center");
         if (center || "center".equals(pos)) {
             lp.gravity = Gravity.CENTER;
         } else if ("top".equals(pos)) {
@@ -404,15 +459,14 @@ public class OverlayManager {
             try { wm.removeView(current); } catch (Exception ignored) { }
         }
         current = v;
+        // once kucuk ikon kutusu "pop" diye belirir
         v.setAlpha(0f);
-        if (center) {
-            v.setScaleX(0.8f);
-            v.setScaleY(0.8f);
-        } else {
-            v.setTranslationY("top".equals(pos) ? -dp(30) : dp(30));
-        }
+        v.setScaleX(0.5f);
+        v.setScaleY(0.5f);
         wm.addView(v, lp);
-        v.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0).setDuration(380).start();
+        v.animate().alpha(1f).scaleX(1f).scaleY(1f)
+                .setInterpolator(new OvershootInterpolator(1.6f))
+                .setDuration(380).start();
     }
 
     private void removeCurrent(final boolean thenNext) {
@@ -430,7 +484,8 @@ public class OverlayManager {
             busy = false;
             return;
         }
-        v.animate().alpha(0f).translationY(dp(20)).setDuration(300).withEndAction(() -> {
+        v.animate().alpha(0f).scaleX(0.85f).scaleY(0.85f)
+                .setInterpolator(new AccelerateInterpolator()).setDuration(280).withEndAction(() -> {
             try { wm.removeView(v); } catch (Exception ignored) { }
             busy = false;
             next();

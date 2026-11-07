@@ -132,7 +132,7 @@
       </div>
       <div>
         <label for="pos">Konum</label>
-        <select id="pos"><option value="bottom">Altta</option><option value="center">Ortada</option><option value="top">Üstte</option></select>
+        <select id="pos"><option value="center" selected>Ortada</option><option value="bottom">Altta</option><option value="top">Üstte</option></select>
       </div>
     </div>
     <label class="switch"><input type="checkbox" id="sound" checked> Bildirim sesi çalsın</label>
@@ -152,6 +152,7 @@
 
   // ayarlari hatirla
   $('name').value = store('name') || 'Sparky';
+  if (store('posv') !== '2'){ store('pos','center'); store('posv','2'); }
   ['sec','pos'].forEach(function(k){ var v = store(k); if(v) $(k).value = v; });
   if (store('sound') === '0') $('sound').checked = false;
   ['name','sec','pos'].forEach(function(k){ $(k).addEventListener('change', function(){ store(k, $(k).value); }); });
