@@ -8,7 +8,11 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.net.wifi.WifiManager;
 import android.os.IBinder;
+import android.os.PowerManager;
+import android.os.SystemClock;
+import android.app.AlarmManager;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -27,6 +31,8 @@ public class MessageService extends Service {
 
     private WebServer server;
     private OverlayManager overlay;
+    private WifiManager.WifiLock wifiLock;
+    private PowerManager.WakeLock wakeLock;
 
     public static void start(Context ctx) {
         Intent i = new Intent(ctx, MessageService.class);
@@ -50,6 +56,7 @@ public class MessageService extends Service {
     public void onCreate() {
         super.onCreate();
         startForeground(1, buildNotification());
+        acquireLocks();
 
         overlay = new OverlayManager(this);
         server = new WebServer(this, PORT, new WebServer.Listener() {
@@ -88,7 +95,64 @@ public class MessageService extends Service {
     public void onDestroy() {
         if (server != null) server.shutdown();
         if (overlay != null) overlay.release();
+        releaseLocks();
+        scheduleRestart();
         super.onDestroy();
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        scheduleRestart();
+        super.onTaskRemoved(rootIntent);
+    }
+
+    /** Sistem servisi kapatirsa 3 sn sonra yeniden ac. */
+    private void scheduleRestart() {
+        try {
+            Intent i = new Intent(getApplicationContext(), MessageService.class);
+            int fl = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
+            PendingIntent pi = Build.VERSION.SDK_INT >= 26
+                    ? PendingIntent.getForegroundService(this, 7, i, fl | PendingIntent.FLAG_UPDATE_CURRENT)
+                    : PendingIntent.getService(this, 7, i, fl | PendingIntent.FLAG_UPDATE_CURRENT);
+            AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+            am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 3000, pi);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Wi-Fi'in ve islemcinin uykuya gecip baglantiyi koparmasini engeller. */
+    @SuppressWarnings("deprecation")
+    private void acquireLocks() {
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+            if (wm != null) {
+                int mode = Build.VERSION.SDK_INT >= 29
+                        ? WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+                        : WifiManager.WIFI_MODE_FULL_HIGH_PERF;
+                wifiLock = wm.createWifiLock(mode, "Sparky:wifi");
+                wifiLock.setReferenceCounted(false);
+                wifiLock.acquire();
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Sparky:server");
+            wakeLock.setReferenceCounted(false);
+            wakeLock.acquire();
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void releaseLocks() {
+        try {
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+        } catch (Exception ignored) {
+        }
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        } catch (Exception ignored) {
+        }
     }
 
     @Override

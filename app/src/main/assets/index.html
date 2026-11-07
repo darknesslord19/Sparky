@@ -191,13 +191,35 @@
   }
   renderHistory();
 
+  // zaman asimli istek
+  function tfetch(url, opt, ms){
+    var ctl = window.AbortController ? new AbortController() : null;
+    var t = ctl ? setTimeout(function(){ ctl.abort(); }, ms) : null;
+    if (ctl) opt.signal = ctl.signal;
+    return fetch(url, opt).finally(function(){ if (t) clearTimeout(t); });
+  }
+  // gonderim: baglanti koparsa 4 kez otomatik yeniden dener
   function post(url, body, btn, label, okText){
-    btn.disabled = true; var old = btn.textContent; btn.textContent = 'Gönderiliyor…';
-    return fetch(url, {method:'POST', body: body}).then(function(r){ return r.json(); }).then(function(j){
-      if (j.ok){ toast('✅ ' + okText); addHistory(label); return true; }
-      toast('⚠️ ' + (j.message || 'Hata'), false); return false;
-    }).catch(function(){ toast('⚠️ TV\'ye ulaşılamadı. Aynı Wi-Fi\'da mısın?', false); return false; })
-      .finally(function(){ btn.disabled = false; btn.textContent = old; });
+    btn.disabled = true; var old = btn.textContent;
+    var big = body instanceof Blob && body.size > 200000;
+    var tries = 0, max = 4;
+    function attempt(){
+      tries++;
+      btn.textContent = tries > 1 ? ('Yeniden deneniyor… (' + tries + '/' + max + ')') : 'Gönderiliyor…';
+      return tfetch(url, {method:'POST', body: body, cache:'no-store'}, big ? 90000 : 7000)
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          setOnline(true);
+          if (j.ok){ toast('✅ ' + okText); addHistory(label); return true; }
+          toast('⚠️ ' + (j.message || 'Hata'), false); return false;
+        })
+        .catch(function(){
+          if (tries < max) return new Promise(function(res){ setTimeout(res, 700 * tries); }).then(attempt);
+          setOnline(false);
+          toast('⚠️ TV\'ye ulaşılamadı. Aynı Wi-Fi\'da mısın? TV açık mı?', false); return false;
+        });
+    }
+    return attempt().finally(function(){ btn.disabled = false; btn.textContent = old; });
   }
 
   // sekmeler
@@ -297,14 +319,25 @@
       .then(function(ok){ if (ok){ audBlob = null; $('player').style.display='none'; $('audText').value=''; $('sendAud').disabled = true; } });
   });
 
-  // ---- baglanti durumu ----
-  function ping(){
-    fetch('/api/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(j){
-      $('dot').className = 'dot on';
-      $('connText').textContent = j.overlay ? 'TV\'ye bağlı · hazır' : 'TV\'ye bağlı · TV\'de "üstte gösterme" izni verilmemiş!';
-    }).catch(function(){ $('dot').className = 'dot off'; $('connText').textContent = 'TV\'ye ulaşılamıyor'; });
+  // ---- baglanti durumu (koparsa hizli yeniden baglanir) ----
+  var online = null, pingTimer = null;
+  function setOnline(v, overlay){
+    online = v;
+    $('dot').className = 'dot ' + (v ? 'on' : 'off');
+    if (v) $('connText').textContent = overlay === false ? 'TV\'ye bağlı · TV\'de "üstte gösterme" izni verilmemiş!' : 'TV\'ye bağlı · hazır';
+    else $('connText').textContent = 'Bağlantı koptu · yeniden bağlanılıyor…';
   }
-  ping(); setInterval(ping, 8000);
+  function ping(){
+    clearTimeout(pingTimer);
+    tfetch('/api/status?t=' + Date.now(), {cache:'no-store'}, 4000).then(function(r){ return r.json(); })
+      .then(function(j){ setOnline(true, j.overlay); pingTimer = setTimeout(ping, 10000); })
+      .catch(function(){ setOnline(false); pingTimer = setTimeout(ping, 2000); });
+  }
+  // telefon ekrani acilinca / sekmeye donulunce hemen kontrol et
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) ping(); });
+  window.addEventListener('online', ping);
+  window.addEventListener('focus', ping);
+  ping();
 })();
 </script>
 </body>

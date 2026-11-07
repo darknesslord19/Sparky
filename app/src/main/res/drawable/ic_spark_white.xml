@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Overlay icin beyaz Sparky (gozler acik) - ozgun cizim -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <!-- golge -->
+    <path android:fillColor="#33000000"
+        android:pathData="M15,42.5 a9,1.6 0 1,0 18,0 a9,1.6 0 1,0 -18,0" />
+    <!-- tuylu govde + alev perçem -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M24,4 C25.5,8 29,9.5 28.5,13.5 C33,15 36,19.5 36,25.5 C37.8,26.5 38.2,29 36.6,30 C36.2,36.5 31,41.5 24,41.5 C17,41.5 11.8,36.5 11.4,30 C9.8,29 10.2,26.5 12,25.5 C12,19.5 15,15 19.5,13.5 C19.6,11 21,9.5 22.5,9.8 C22,7.8 22.6,5.8 24,4 Z" />
+    <!-- hafif golgelendirme -->
+    <path android:fillColor="#1F2F68A8"
+        android:pathData="M14,30 C15,36.5 19,39.8 24,39.8 C29,39.8 33,36.5 34,30 C32,34 28.5,36 24,36 C19.5,36 16,34 14,30 Z" />
+    <!-- yanaklar -->
+    <path android:fillColor="#66FF9DB5"
+        android:pathData="M16,29.5 a2.4,1.5 0 1,0 4.8,0 a2.4,1.5 0 1,0 -4.8,0" />
+    <path android:fillColor="#66FF9DB5"
+        android:pathData="M27.2,29.5 a2.4,1.5 0 1,0 4.8,0 a2.4,1.5 0 1,0 -4.8,0" />
+    <!-- gozler -->
+    <path android:fillColor="#FF14324F"
+        android:pathData="M18.8,25.5 a1.9,2.4 0 1,0 3.8,0 a1.9,2.4 0 1,0 -3.8,0" />
+    <path android:fillColor="#FF14324F"
+        android:pathData="M25.4,25.5 a1.9,2.4 0 1,0 3.8,0 a1.9,2.4 0 1,0 -3.8,0" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M20.6,24.6 a0.6,0.6 0 1,0 1.2,0 a0.6,0.6 0 1,0 -1.2,0" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M27.2,24.6 a0.6,0.6 0 1,0 1.2,0 a0.6,0.6 0 1,0 -1.2,0" />
+    <!-- agiz -->
+    <path android:strokeColor="#FF14324F" android:strokeWidth="1.3"
+        android:strokeLineCap="round" android:fillColor="#00000000"
+        android:pathData="M22.6,30.2 Q24,31.6 25.4,30.2" />
+</vector>

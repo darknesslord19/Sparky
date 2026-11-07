@@ -3,6 +3,8 @@ package com.sparky.tvmesaj;
 import android.content.Context;
 import android.util.Log;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Bagimliliksiz, cok kucuk bir HTTP sunucusu.
@@ -48,42 +52,84 @@ public class WebServer extends Thread {
 
     public void shutdown() {
         running = false;
+        pool.shutdownNow();
         try {
             if (serverSocket != null) serverSocket.close();
         } catch (IOException ignored) {
         }
     }
 
+    /** Sunucu dustugunde / port mesgulse kendini 2 sn icinde yeniden baslatir. */
     @Override
     public void run() {
-        try {
-            serverSocket = new ServerSocket();
-            serverSocket.setReuseAddress(true);
-            serverSocket.bind(new InetSocketAddress(port));
-            while (running) {
-                final Socket s = serverSocket.accept();
-                new Thread(() -> handle(s), "SparkyClient").start();
+        while (running) {
+            try {
+                serverSocket = new ServerSocket();
+                serverSocket.setReuseAddress(true);
+                serverSocket.setReceiveBufferSize(256 * 1024);
+                serverSocket.bind(new InetSocketAddress(port), 50);
+                Log.i(TAG, "Sunucu acik: " + port);
+                while (running) {
+                    final Socket s = serverSocket.accept();
+                    try {
+                        pool.execute(() -> handle(s));
+                    } catch (Exception e) {
+                        closeQuietly(s);
+                    }
+                }
+            } catch (IOException e) {
+                if (running) Log.e(TAG, "Sunucu hatasi, yeniden baslatiliyor", e);
+            } finally {
+                try {
+                    if (serverSocket != null) serverSocket.close();
+                } catch (IOException ignored) {
+                }
             }
-        } catch (IOException e) {
-            if (running) Log.e(TAG, "Sunucu hatasi", e);
+            if (running) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+    }
+
+    private final ExecutorService pool = Executors.newFixedThreadPool(6);
+
+    private static void closeQuietly(Socket s) {
+        try {
+            s.close();
+        } catch (IOException ignored) {
         }
     }
 
     private void handle(Socket s) {
         try {
-            s.setSoTimeout(60000);
-            InputStream in = s.getInputStream();
-            OutputStream out = s.getOutputStream();
+            handleInner(s);
+        } finally {
+            // once yaniti tamamen gonder, sonra kapat (yarim kalan yanit = "baglanti koptu")
+            try {
+                s.shutdownOutput();
+            } catch (Exception ignored) {
+            }
+            closeQuietly(s);
+        }
+    }
+
+    private void handleInner(Socket s) {
+        try {
+            s.setSoTimeout(30000);
+            s.setTcpNoDelay(true);
+            InputStream in = new BufferedInputStream(s.getInputStream(), 64 * 1024);
+            OutputStream out = new BufferedOutputStream(s.getOutputStream(), 32 * 1024);
 
             String head = readHead(in);
             if (head == null || head.isEmpty()) {
-                s.close();
                 return;
             }
             String[] lines = head.split("\r\n");
             String[] req = lines[0].split(" ");
             if (req.length < 2) {
-                s.close();
                 return;
             }
             String method = req[0].toUpperCase(Locale.ROOT);
@@ -112,7 +158,7 @@ public class WebServer extends Thread {
                 int len = Integer.parseInt(cl.trim());
                 if (len > MAX_BODY) {
                     send(out, 413, "application/json", json(false, "Dosya cok buyuk (en fazla 30 MB)"));
-                    s.close();
+                    out.flush();
                     return;
                 }
                 body = readFully(in, len);
@@ -120,13 +166,8 @@ public class WebServer extends Thread {
 
             route(method, path, query, headers, body, out);
             out.flush();
-            s.close();
         } catch (Exception e) {
             Log.e(TAG, "Istek hatasi", e);
-            try {
-                s.close();
-            } catch (IOException ignored) {
-            }
         }
     }
 
@@ -255,7 +296,7 @@ public class WebServer extends Thread {
         int off = 0;
         while (off < len) {
             int r = in.read(data, off, len - off);
-            if (r < 0) break;
+            if (r < 0) throw new IOException("Yukleme yarida kesildi");
             off += r;
         }
         return data;

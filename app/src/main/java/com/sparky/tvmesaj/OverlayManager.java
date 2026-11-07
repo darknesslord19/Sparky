@@ -35,7 +35,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
+import android.animation.ValueAnimator;
 import android.view.animation.AccelerateInterpolator;
+import android.view.animation.LinearInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -213,8 +215,7 @@ public class OverlayManager {
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        ImageView icon = sparkyIcon(dp(54));
-        col.addView(icon);
+        col.addView(mascotBox(dp(58)), new LinearLayout.LayoutParams(dp(58), dp(58)));
 
         TextView name = label(m.name + ":", 20, true);
         name.setPadding(0, dp(6), 0, 0);
@@ -336,14 +337,64 @@ public class OverlayManager {
         row.addView(tv, tlp);
         row.setTag(tv);
 
-        ImageView icon = sparkyIcon(dp(44));
+        row.addView(mascotBox(dp(46)), new LinearLayout.LayoutParams(dp(46), dp(46)));
+        return row;
+    }
+
+    /** Mavi kutu icinde hareketli beyaz Sparky (ziplar, sallanir, goz kirpar). */
+    private View mascotBox(int size) {
+        FrameLayout box = new FrameLayout(ctx);
         GradientDrawable ibg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{0xFF4F8DCC, 0xFF2F68A8});
-        ibg.setCornerRadius(dp(12));
+        ibg.setCornerRadius(size * 0.27f);
         ibg.setStroke(dp(1), 0xB3FFFFFF);
-        icon.setBackground(ibg);
-        row.addView(icon, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        return row;
+        box.setBackground(ibg);
+        box.setClipChildren(true);
+
+        final ImageView m = new ImageView(ctx);
+        m.setImageResource(R.drawable.ic_spark_white);
+        int pad = (int) (size * 0.08f);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(size - pad * 2, size - pad * 2, Gravity.CENTER);
+        box.addView(m, lp);
+
+        final ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
+        anim.setDuration(1000);
+        anim.setRepeatCount(ValueAnimator.INFINITE);
+        anim.setInterpolator(new LinearInterpolator());
+        final long born = System.currentTimeMillis();
+        final float amp = size * 0.06f;
+        anim.addUpdateListener(a -> {
+            float t = (System.currentTimeMillis() - born) / 1000f;
+            // ilk 0.8 sn: sevincle ziplama ve el sallar gibi sallanma, sonra yumusak nefes alma
+            float intro = Math.max(0f, 1f - t / 0.8f);
+            double bounce = Math.abs(Math.sin(t * Math.PI * 2.2));
+            m.setTranslationY((float) (-bounce * amp * (0.6f + 1.4f * intro)));
+            m.setRotation((float) (Math.sin(t * Math.PI * 3.0) * (4f + 10f * intro)));
+            float squash = (float) (1f - 0.06f * (1 - bounce));
+            m.setScaleY(squash);
+            m.setScaleX(2f - squash);
+            m.setPivotY(m.getHeight());
+            m.setPivotX(m.getWidth() / 2f);
+            // goz kirpma: her ~2.6 sn'de 150 ms
+            boolean blink = (t % 2.6f) > 2.45f;
+            Object tag = m.getTag();
+            if (tag == null || (Boolean) tag != blink) {
+                m.setImageResource(blink ? R.drawable.ic_spark_blink : R.drawable.ic_spark_white);
+                m.setTag(blink);
+            }
+        });
+        box.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+                anim.start();
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                anim.cancel();
+            }
+        });
+        return box;
     }
 
     /**
