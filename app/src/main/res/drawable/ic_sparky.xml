@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sparky: kucuk mavi alev maskot (ozgun cizim) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- arka plan daire -->
+    <path android:fillColor="#FF1C4E7C"
+        android:pathData="M24,1 A23,23 0 1,1 23.99,1 Z" />
+    <!-- alev govde -->
+    <path android:fillColor="#FF7AD3FF"
+        android:pathData="M24,6 C27,11 34,14 35,25 C36,34 30.5,41 24,41 C17.5,41 12,34 13,25 C13.5,20 16,17 18,13 C19,16.5 20.5,18 22,18 C21,13 22,9.5 24,6 Z" />
+    <!-- ic parlaklik -->
+    <path android:fillColor="#FFC9F1FF"
+        android:pathData="M24,20 C28,21.5 31,25 31,30 C31,35 27.8,38 24,38 C20.2,38 17,35 17,30 C17,25 20,21.5 24,20 Z" />
+    <!-- gozler -->
+    <path android:fillColor="#FF0B2540"
+        android:pathData="M20.5,27.5 m-1.8,0 a1.8,2.2 0 1,0 3.6,0 a1.8,2.2 0 1,0 -3.6,0" />
+    <path android:fillColor="#FF0B2540"
+        android:pathData="M27.5,27.5 m-1.8,0 a1.8,2.2 0 1,0 3.6,0 a1.8,2.2 0 1,0 -3.6,0" />
+    <!-- gulumseme -->
+    <path android:strokeColor="#FF0B2540"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M21,32 Q24,35 27,32" />
+</vector>

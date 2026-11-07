@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV ana ekran kapagi (320x180) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#FF14324F" android:pathData="M0,0 H320 V180 H0 Z" />
+    <path android:fillColor="#FF1C4E7C" android:pathData="M0,120 C80,95 200,150 320,110 V180 H0 Z" />
+    <path android:fillColor="#33FFFFFF"
+        android:pathData="M60,62 H260 A18,18 0 0,1 278,80 V100 A18,18 0 0,1 260,118 H60 A18,18 0 0,1 42,100 V80 A18,18 0 0,1 60,62 Z" />
+    <group android:translateX="136" android:translateY="56" android:scaleX="1.0" android:scaleY="1.0">
+        <path android:fillColor="#FF7AD3FF"
+            android:pathData="M24,6 C27,11 34,14 35,25 C36,34 30.5,41 24,41 C17.5,41 12,34 13,25 C13.5,20 16,17 18,13 C19,16.5 20.5,18 22,18 C21,13 22,9.5 24,6 Z" />
+        <path android:fillColor="#FFC9F1FF"
+            android:pathData="M24,20 C28,21.5 31,25 31,30 C31,35 27.8,38 24,38 C20.2,38 17,35 17,30 C17,25 20,21.5 24,20 Z" />
+        <path android:fillColor="#FF0B2540"
+            android:pathData="M20.5,27.5 m-1.8,0 a1.8,2.2 0 1,0 3.6,0 a1.8,2.2 0 1,0 -3.6,0" />
+        <path android:fillColor="#FF0B2540"
+            android:pathData="M27.5,27.5 m-1.8,0 a1.8,2.2 0 1,0 3.6,0 a1.8,2.2 0 1,0 -3.6,0" />
+    </group>
+</vector>
