@@ -178,6 +178,7 @@
     clear();
     if (name !== 'sparky' && window.lottie && window.LOT && LOT[name]){
       var d = document.createElement('div'); d.className = 'lot'; box.appendChild(d);
+      var ZOOM = {ucak:1.9, chatbot:1.15}; if (ZOOM[name]) d.style.transform = 'scale(' + ZOOM[name] + ')';
       lot = lottie.loadAnimation({container:d, renderer:'svg', loop:true, autoplay:true,
         animationData: JSON.parse(JSON.stringify(LOT[name])), rendererSettings:{preserveAspectRatio:'xMidYMid meet'}});
       return;
