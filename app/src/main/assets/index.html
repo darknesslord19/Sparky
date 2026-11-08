@@ -60,6 +60,13 @@
         border-radius:12px;padding:10px 4px;cursor:pointer}
   .tabs button.active{background:rgba(143,227,255,.22);border-color:var(--accent)}
   .pane{display:none}.pane.active{display:block}
+  .icons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .ic{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;
+      border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.18)}
+  .ic[aria-pressed="true"]{border-color:var(--accent);background:rgba(143,227,255,.16);box-shadow:0 0 0 1px var(--accent) inset}
+  .ic iframe{width:100%;aspect-ratio:1;border:0;pointer-events:none;background:transparent;border-radius:24%}
+  .ic span{font-size:11px;color:var(--muted);text-align:center;line-height:1.1}
+  .ic[aria-pressed="true"] span{color:var(--text);font-weight:700}
 </style>
 </head>
 <body>
@@ -81,6 +88,11 @@
   <div class="card">
     <label for="name">Gönderen adı (TV'de "… ile Mesaj:" olarak görünür)</label>
     <input type="text" id="name" maxlength="30" placeholder="Sparky">
+  </div>
+
+  <div class="card">
+    <label>Mesajla birlikte görünecek canlı ikon</label>
+    <div class="icons" id="icons"></div>
   </div>
 
   <div class="card">
@@ -152,6 +164,23 @@
 
   // ayarlari hatirla
   $('name').value = store('name') || 'Sparky';
+  // ---- canli ikon secici ----
+  var ICONS = [['sparky','Sparky'],['chatbot','Sohbet Botu'],['ucak','Kağıt Uçak'],['kaykay','Kaykaylı Kuş'],['muzik','Müzikli Kuş']];
+  var currentIcon = store('icon') || 'sparky';
+  if (!ICONS.some(function(i){ return i[0] === currentIcon; })) currentIcon = 'sparky';
+  ICONS.forEach(function(it){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'ic'; b.id = 'ic-' + it[0];
+    b.setAttribute('aria-pressed', it[0] === currentIcon ? 'true' : 'false');
+    var f = document.createElement('iframe'); f.src = '/a/web/icon.html#' + it[0]; f.title = it[1]; f.loading = 'lazy'; f.tabIndex = -1;
+    var s = document.createElement('span'); s.textContent = it[1];
+    b.appendChild(f); b.appendChild(s);
+    b.addEventListener('click', function(){
+      currentIcon = it[0]; store('icon', currentIcon);
+      document.querySelectorAll('.ic').forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+    });
+    $('icons').appendChild(b);
+  });
+
   if (store('posv') !== '2'){ store('pos','center'); store('posv','2'); }
   ['sec','pos'].forEach(function(k){ var v = store(k); if(v) $(k).value = v; });
   if (store('sound') === '0') $('sound').checked = false;
@@ -168,6 +197,7 @@
     p.set('name', $('name').value.trim() || 'Sparky');
     p.set('sec', $('sec').value);
     p.set('pos', $('pos').value);
+    p.set('icon', currentIcon);
     p.set('sound', $('sound').checked ? '1' : '0');
     for (var k in extra) p.set(k, extra[k]);
     return p;
@@ -242,7 +272,7 @@
     var t = $('msg').value.trim();
     if (!t){ toast('Önce bir mesaj yaz ✏️', false); return; }
     var body = params({text: t});
-    post('/api/send?pos=' + encodeURIComponent($('pos').value), body, $('sendText'), t, 'TV\'de gösteriliyor')
+    post('/api/send?pos=' + encodeURIComponent($('pos').value) + '&icon=' + currentIcon, body, $('sendText'), t, 'TV\'de gösteriliyor')
       .then(function(ok){ if (ok) $('msg').value = ''; });
   });
   $('msg').addEventListener('keydown', function(e){ if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('sendText').click(); } });

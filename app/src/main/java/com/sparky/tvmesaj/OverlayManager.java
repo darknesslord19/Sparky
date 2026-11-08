@@ -43,6 +43,10 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.graphics.Color;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -72,12 +76,23 @@ public class OverlayManager {
         byte[] data;
         int seconds;
         boolean sound;
+        String icon;
     }
+
+    /** Telefondan secilebilen ikonlar (assets/web/icon.html icinde). */
+    public static final String[] ICONS = {"sparky", "chatbot", "ucak", "kaykay", "muzik"};
+
+    private WebView web;
+    private boolean webFailed, webLoaded;
+    private String pendingIcon = "sparky";
+    private String curIcon = "sparky";
 
     public OverlayManager(Context ctx) {
         this.ctx = ctx.getApplicationContext();
         this.wm = (WindowManager) this.ctx.getSystemService(Context.WINDOW_SERVICE);
         this.prefs = this.ctx.getSharedPreferences("sparky", Context.MODE_PRIVATE);
+        // canli ikonu onceden hazirla ki ilk mesajda bos gorunmesin
+        main.post(this::getWeb);
     }
 
     public static boolean canDraw(Context c) {
@@ -105,6 +120,7 @@ public class OverlayManager {
     }
 
     private void post(Msg m) {
+        m.icon = prefs.getString("icon", "sparky");
         main.post(() -> {
             queue.add(m);
             if (!busy) next();
@@ -124,6 +140,7 @@ public class OverlayManager {
             queue.clear();
             return;
         }
+        curIcon = m.icon == null ? "sparky" : m.icon;
         try {
             if (m.sound && m.kind != 2) chime();
             switch (m.kind) {
@@ -138,6 +155,10 @@ public class OverlayManager {
     }
 
     public void release() {
+        if (web != null) {
+            try { parkWeb(); web.destroy(); } catch (Exception ignored) { }
+            web = null;
+        }
         main.removeCallbacksAndMessages(null);
         queue.clear();
         stopPlayer();
@@ -215,7 +236,7 @@ public class OverlayManager {
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        col.addView(mascotBox(dp(58)), new LinearLayout.LayoutParams(dp(58), dp(58)));
+        col.addView(iconView(curIcon, dp(64)), new LinearLayout.LayoutParams(dp(64), dp(64)));
 
         TextView name = label(m.name + ":", 20, true);
         name.setPadding(0, dp(6), 0, 0);
@@ -337,8 +358,66 @@ public class OverlayManager {
         row.addView(tv, tlp);
         row.setTag(tv);
 
-        row.addView(mascotBox(dp(46)), new LinearLayout.LayoutParams(dp(46), dp(46)));
+        row.addView(iconView(curIcon, dp(50)), new LinearLayout.LayoutParams(dp(50), dp(50)));
         return row;
+    }
+
+    // ---------------- canli ikon (WebView) ----------------
+
+    private static String safeIcon(String icon) {
+        if (icon != null) for (String k : ICONS) if (k.equals(icon)) return k;
+        return "sparky";
+    }
+
+    private WebView getWeb() {
+        if (webFailed) return null;
+        if (web != null) return web;
+        try {
+            WebView w = new WebView(ctx);
+            WebSettings st = w.getSettings();
+            st.setJavaScriptEnabled(true);
+            st.setAllowFileAccess(true);
+            st.setDomStorageEnabled(true);
+            st.setMediaPlaybackRequiresUserGesture(false);
+            w.setBackgroundColor(Color.TRANSPARENT);
+            w.setVerticalScrollBarEnabled(false);
+            w.setHorizontalScrollBarEnabled(false);
+            w.setFocusable(false);
+            w.setFocusableInTouchMode(false);
+            w.setWebViewClient(new WebViewClient() {
+                @Override
+                public void onPageFinished(WebView v, String url) {
+                    webLoaded = true;
+                    v.evaluateJavascript("window.show&&show('" + pendingIcon + "')", null);
+                }
+            });
+            w.loadUrl("file:///android_asset/web/icon.html#sparky");
+            web = w;
+            return w;
+        } catch (Throwable t) {
+            Log.w(TAG, "WebView yok, sabit ikon kullanilacak", t);
+            webFailed = true;
+            return null;
+        }
+    }
+
+    /** Secilen canli ikonu verir; WebView yoksa eski cizimli ikona duser. */
+    private View iconView(String icon, int size) {
+        WebView w = getWeb();
+        if (w == null) return mascotBox(size);
+        pendingIcon = safeIcon(icon);
+        if (w.getParent() instanceof ViewGroup) ((ViewGroup) w.getParent()).removeView(w);
+        w.onResume();
+        if (webLoaded) w.evaluateJavascript("window.show&&show('" + pendingIcon + "')", null);
+        FrameLayout f = new FrameLayout(ctx);
+        f.addView(w, new FrameLayout.LayoutParams(size, size));
+        return f;
+    }
+
+    private void parkWeb() {
+        if (web == null) return;
+        if (web.getParent() instanceof ViewGroup) ((ViewGroup) web.getParent()).removeView(web);
+        web.onPause();
     }
 
     /** Mavi kutu icinde hareketli beyaz Sparky (ziplar, sallanir, goz kirpar). */
@@ -539,6 +618,7 @@ public class OverlayManager {
                 .setInterpolator(new AccelerateInterpolator()).setDuration(280).withEndAction(() -> {
             try { wm.removeView(v); } catch (Exception ignored) { }
             busy = false;
+            if (queue.isEmpty()) parkWeb();
             next();
         }).start();
     }

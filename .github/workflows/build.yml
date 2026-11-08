@@ -20,6 +20,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.7'
+      - name: Lottie oynaticisini indir
+        run: curl -fsSL -o app/src/main/assets/web/lottie.min.js https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js
       - name: APK olustur
         run: gradle assembleDebug --no-daemon --stacktrace
       - name: APK adini duzenle
@@ -37,6 +39,13 @@ jobs:
           body: "Android TV'ye kurmak icin SparkyMesaj.apk dosyasini indirin."
           files: SparkyMesaj.apk
           make_latest: true
+      - name: Ikon onizlemeleri
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/out
+          npm i --no-save playwright@1.47.2
+          npx playwright install --with-deps chromium
+          node tools/preview.js
       - name: APK'yi 'apk' dalina koy
         run: |
           mkdir -p /tmp/out && cp SparkyMesaj.apk /tmp/out/
@@ -44,6 +53,6 @@ jobs:
           git init -q -b apk
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git add SparkyMesaj.apk
+          git add -A
           git commit -qm "APK ${GITHUB_SHA::7}"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" apk

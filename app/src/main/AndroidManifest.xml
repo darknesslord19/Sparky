@@ -15,8 +15,8 @@
 
     <application
         android:allowBackup="true"
-        android:banner="@drawable/banner"
-        android:icon="@drawable/ic_sparky"
+        android:banner="@drawable/banner_art"
+        android:icon="@drawable/app_art"
         android:label="@string/app_name"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 

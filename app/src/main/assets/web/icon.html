@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sparky ikon</title>
+<style>
+  html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}
+  #box{position:absolute;inset:0;border-radius:24%;overflow:hidden}
+  #box.sparky{background:#05080c}
+  #box canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #box img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.04)}
+  #box .lot{position:absolute;inset:0}
+</style>
+</head>
+<body>
+<div id="box"></div>
+<script src="sparky_img.js"></script>
+<script src="lottie.min.js"></script>
+<script src="lottie/chatbot.js"></script>
+<script src="lottie/ucak.js"></script>
+<script src="lottie/kaykay.js"></script>
+<script src="lottie/muzik.js"></script>
+<script>
+(function(){
+  var IMG_SRC = window.SPARKY_IMG;
+  var reduce = false;
+  var box = document.getElementById('box');
+  var img = new Image(), imgReady = false;
+  var instances = [], lot = null, running = false;
+
+  var VS = 'attribute vec2 a;varying vec2 uv;void main(){uv=vec2((a.x+1.)*.5,1.-(a.y+1.)*.5);gl_Position=vec4(a,0.,1.);}';
+  var FS = [
+    'precision mediump float;',
+    'uniform sampler2D img;uniform float t;uniform float blink;uniform float glow;varying vec2 uv;',
+    'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}',
+    'float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);',
+    ' return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}',
+    'float fbm(vec2 p){float v=0.,a=.5;for(int k=0;k<4;k++){v+=a*n(p);p*=2.03;a*=.5;}return v;}',
+    // goz kapagi
+    'vec3 lid(vec3 col,vec2 p,vec2 c,vec2 r,float b){',
+    ' vec2 e=(p-c)/(r*1.16);float d=dot(e,e);',
+    ' if(d>1.||b<=0.001)return col;',
+    ' float edge=-1.+1.95*b-.32*b*(1.-e.x*e.x);',      // kapak kenari (kapandikca asagi kavisli)
+    ' vec3 skin=mix(vec3(.995,.995,1.),vec3(.93,.94,.955),clamp(.5+.5*e.y,0.,1.));',
+    ' float aa=.05;',
+    ' float cover=1.-smoothstep(edge-aa,edge+aa,e.y);',
+    ' float rim=smoothstep(1.,.78,d);',
+    ' col=mix(col,skin,cover*rim);',
+    ' float lash=(1.-smoothstep(.0,.11,abs(e.y-edge)))*smoothstep(.15,.6,b)*smoothstep(.95,.7,d);',
+    ' return mix(col,vec3(.05,.1,.17),lash*.9);}',
+    'void main(){',
+    ' vec2 p=uv;',
+    ' float br=sin(t*1.55)+.25*sin(t*.73);',                 // duzensiz, yavas nefes
+    ' vec2 c0=vec2(.5,.93);',
+    ' p=c0+(p-c0)/vec2(1.+.009*br,1.-.011*br);',
+    ' p.y+=.006*br;',
+    ' p=.5+(p-.5)/1.04;',                                     // kenar tasmasi
+    ' vec2 q=(p-vec2(.505,.648))/vec2(.268,.218);',
+    ' float m=smoothstep(.86,1.18,length(q));',               // govde disi = alev
+    ' float top=smoothstep(.78,.08,p.y);',
+    ' vec2 nu=vec2(p.x*3.2,p.y*4.2+t*1.05);',                 // gurultu yukari akar
+    ' float n1=fbm(nu),n2=fbm(nu*1.7+vec2(4.1,1.7)+vec2(0.,t*.6));',
+    ' float amp=m*(.006+.03*top);',
+    ' vec2 d=vec2((n1-.5)*1.25,(n2-.35)*.9)*amp;',            // asagidan ornekle = yukari uzama
+    ' vec3 col=texture2D(img,p+d).rgb;',
+    ' col*=1.+m*(n1-.5)*.32*(.4+top);',                       // alev parlaklik titresimi
+    ' col=lid(col,p,vec2(183.,288.)/512.,vec2(35.,36.)/512.,blink);',
+    ' col=lid(col,p,vec2(336.,305.)/512.,vec2(36.,36.)/512.,blink);',
+    ' float g=glow*m*(.5+n2*.7)*smoothstep(.0,.6,length(col));',
+    ' col+=vec3(.12,.85,.8)*g*.09;',
+    ' float floorG=smoothstep(.2,0.,abs(p.y-.9))*smoothstep(.35,.0,abs(p.x-.5));',
+    ' col+=vec3(.1,.75,.72)*floorG*glow*.12;',
+    ' gl_FragColor=vec4(col,1.);}'
+  ].join('\n');
+
+
+
+  function makeLive(holder){
+    var gl, cv = document.createElement('canvas'), fxc = document.createElement('canvas');
+    holder.appendChild(cv); holder.appendChild(fxc);
+    try { gl = cv.getContext('webgl', {premultipliedAlpha:false, antialias:true}) || cv.getContext('experimental-webgl'); } catch(e) {}
+    if (!gl){
+      var still = new Image(); still.src = IMG_SRC; holder.innerHTML = ''; holder.appendChild(still); return null;
+    }
+    try {
+      var sh = function(type, src){ var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+      var pr = gl.createProgram();
+      gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); gl.useProgram(pr);
+      var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+      var loc = gl.getAttribLocation(pr, 'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      var tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    } catch(e) {
+      var still2 = new Image(); still2.src = IMG_SRC; holder.innerHTML = ''; holder.appendChild(still2); return null;
+    }
+    var inst = {holder:holder, gl:gl, cv:cv, fx:fxc, ctx:fxc.getContext('2d'),
+      uT:gl.getUniformLocation(pr,'t'), uB:gl.getUniformLocation(pr,'blink'), uG:gl.getUniformLocation(pr,'glow'),
+      seed:Math.random()*100, nextBlink:1.2+Math.random()*2, blinkStart:-9, dbl:false, parts:[], spawn:0, last:0};
+    instances.push(inst);
+    return inst;
+  }
+
+  function size(inst){
+    var r = inst.holder.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.max(1, Math.round(Math.min(r.width, r.height) * dpr));
+    if (inst.cv.width !== w){ inst.cv.width = inst.cv.height = w; inst.fx.width = inst.fx.height = w; inst.gl.viewport(0, 0, w, w); }
+    return w;
+  }
+
+  function blinkAmount(inst, t){
+    if (t >= inst.nextBlink){
+      inst.blinkStart = t;
+      inst.dbl = Math.random() < .18;
+      inst.nextBlink = t + (inst.dbl ? .32 : 0) + 2.4 + Math.random() * 3.8;
+    }
+    function one(dt){ if (dt < 0 || dt > .24) return 0;
+      if (dt < .075) { var a = dt / .075; return a * a; }
+      if (dt < .105) return 1;
+      var b = (dt - .105) / .135; return 1 - b * (2 - b); }
+    var dt = t - inst.blinkStart;
+    return Math.max(one(dt), inst.dbl ? one(dt - .3) : 0);
+  }
+
+  // kivilcimlar: alev kenarindan dogar, yukari suzulur, savrulur, soner
+  var SPAWN = [[.2,.62],[.8,.6],[.27,.38],[.73,.36],[.42,.2],[.6,.16],[.13,.78],[.88,.76]];
+  function embers(inst, t, dt, w){
+    var c = inst.ctx; c.clearRect(0, 0, w, w);
+    inst.spawn += dt * 7;
+    while (inst.spawn > 1){ inst.spawn--;
+      var s = SPAWN[(Math.random() * SPAWN.length) | 0];
+      inst.parts.push({x:s[0] + (Math.random() - .5) * .06, y:s[1], vy:.06 + Math.random() * .08, ph:Math.random() * 6.3,
+        sw:.01 + Math.random() * .02, life:0, max:1.2 + Math.random() * 1.8, r:.004 + Math.random() * .006, hot:Math.random() < .3}); }
+    c.globalCompositeOperation = 'lighter';
+    for (var i = inst.parts.length - 1; i >= 0; i--){
+      var p = inst.parts[i]; p.life += dt;
+      if (p.life > p.max){ inst.parts.splice(i, 1); continue; }
+      p.y -= p.vy * dt; var x = p.x + Math.sin(p.ph + p.life * 2.2) * p.sw;
+      var k = p.life / p.max, a = Math.sin(Math.PI * k) * (.55 + .45 * Math.sin(p.life * 14 + p.ph));
+      var rr = Math.max(.6, p.r * w * (1 - k * .5));
+      var g = c.createRadialGradient(x * w, p.y * w, 0, x * w, p.y * w, rr * 3);
+      g.addColorStop(0, p.hot ? 'rgba(235,255,255,' + a + ')' : 'rgba(120,250,240,' + a + ')');
+      g.addColorStop(1, 'rgba(40,220,210,0)');
+      c.fillStyle = g; c.beginPath(); c.arc(x * w, p.y * w, rr * 3, 0, 6.283); c.fill();
+    }
+  }
+
+
+
+  var t0 = performance.now();
+  function frame(now){
+    var t = (now - t0) / 1000;
+    for (var i = instances.length - 1; i >= 0; i--){
+      var inst = instances[i];
+      if (!inst.holder.isConnected){ var ext = inst.gl.getExtension('WEBGL_lose_context'); if (ext) ext.loseContext(); instances.splice(i, 1); continue; }
+      var w = size(inst), dt = Math.min(.05, inst.last ? t - inst.last : .016); inst.last = t;
+      var tt = t + inst.seed;
+      var glow = .78 + .14 * Math.sin(tt * 1.3) + .08 * Math.sin(tt * 3.1 + 1.7);
+      inst.gl.uniform1f(inst.uT, tt); inst.gl.uniform1f(inst.uB, blinkAmount(inst, t)); inst.gl.uniform1f(inst.uG, glow);
+      inst.gl.drawArrays(inst.gl.TRIANGLES, 0, 6);
+      embers(inst, t, dt, w);
+    }
+    if (instances.length) requestAnimationFrame(frame); else running = false;
+  }
+
+  function clear(){
+    if (lot){ try { lot.destroy(); } catch(e) {} lot = null; }
+    box.innerHTML = ''; box.className = '';
+  }
+
+  // Ikonu degistir: sparky | chatbot | ucak | kaykay | muzik
+  window.show = function(name){
+    name = (name || 'sparky').toLowerCase();
+    clear();
+    if (name !== 'sparky' && window.lottie && window.LOT && LOT[name]){
+      var d = document.createElement('div'); d.className = 'lot'; box.appendChild(d);
+      lot = lottie.loadAnimation({container:d, renderer:'svg', loop:true, autoplay:true,
+        animationData: JSON.parse(JSON.stringify(LOT[name])), rendererSettings:{preserveAspectRatio:'xMidYMid meet'}});
+      return;
+    }
+    box.className = 'sparky';
+    function go(){ makeLive(box); if (!running){ running = true; requestAnimationFrame(frame); } }
+    if (imgReady) go(); else img.onload = function(){ imgReady = true; go(); };
+  };
+
+  img.onload = function(){ imgReady = true; };
+  img.src = IMG_SRC;
+  var first = (location.hash || '').replace('#', '') || 'sparky';
+  if (img.complete && img.naturalWidth) imgReady = true;
+  window.show(first);
+  window.addEventListener('hashchange', function(){ window.show(location.hash.replace('#', '')); });
+})();
+</script>
+</body>
+</html>

@@ -2,3 +2,5 @@ build/
 .gradle/
 app/build/
 local.properties
+node_modules/
+app/src/main/assets/web/lottie.min.js

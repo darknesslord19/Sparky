@@ -180,6 +180,16 @@ public class WebServer extends Thread {
             ctx.getSharedPreferences("sparky", Context.MODE_PRIVATE).edit().putString("pos", pos).apply();
         }
 
+        String icon = query.get("icon");
+        if (icon != null) {
+            for (String k : OverlayManager.ICONS) {
+                if (k.equals(icon)) {
+                    ctx.getSharedPreferences("sparky", Context.MODE_PRIVATE).edit().putString("icon", k).commit();
+                    break;
+                }
+            }
+        }
+
         if ("OPTIONS".equals(method)) {
             send(out, 204, "text/plain", new byte[0]);
             return;
@@ -187,6 +197,21 @@ public class WebServer extends Thread {
 
         if ("GET".equals(method) && ("/".equals(path) || "/index.html".equals(path))) {
             send(out, 200, "text/html; charset=utf-8", readAsset("index.html"));
+            return;
+        }
+
+        // canli ikon sayfasi ve dosyalari (telefondaki onizleme icin)
+        if ("GET".equals(method) && path.startsWith("/a/web/")) {
+            String rel = path.substring(3);
+            if (rel.contains("..") || rel.contains("//")) {
+                send(out, 400, "text/plain", new byte[0]);
+                return;
+            }
+            try {
+                send(out, 200, mimeOf(rel), readAsset(rel));
+            } catch (IOException e) {
+                send(out, 404, "text/plain; charset=utf-8", "Bulunamadi".getBytes(StandardCharsets.UTF_8));
+            }
             return;
         }
 
@@ -310,6 +335,16 @@ public class WebServer extends Thread {
         while ((r = is.read(b)) > 0) bos.write(b, 0, r);
         is.close();
         return bos.toByteArray();
+    }
+
+    private static String mimeOf(String name) {
+        String n = name.toLowerCase(Locale.ROOT);
+        if (n.endsWith(".html")) return "text/html; charset=utf-8";
+        if (n.endsWith(".js")) return "application/javascript; charset=utf-8";
+        if (n.endsWith(".json")) return "application/json";
+        if (n.endsWith(".webp")) return "image/webp";
+        if (n.endsWith(".png")) return "image/png";
+        return "application/octet-stream";
     }
 
     private static byte[] json(boolean ok, String msg) {

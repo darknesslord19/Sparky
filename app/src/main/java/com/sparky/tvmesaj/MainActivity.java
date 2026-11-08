@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
         LinearLayout head = new LinearLayout(this);
         head.setGravity(Gravity.CENTER_VERTICAL);
         ImageView icon = new ImageView(this);
-        icon.setImageResource(R.drawable.ic_sparky);
+        icon.setImageResource(R.drawable.app_art);
         head.addView(icon, new LinearLayout.LayoutParams(dp(64), dp(64)));
         TextView title = text("Sparky Mesaj", 36, 0xFFFFFFFF, true);
         title.setPadding(dp(16), 0, 0, 0);
