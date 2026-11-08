@@ -11,6 +11,8 @@
   #box canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
   #box img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.04)}
   #box .lot{position:absolute;inset:0}
+  #box.speaky{border-radius:0;overflow:visible}
+  #box.speaky img{object-fit:contain;transform:none}
 </style>
 </head>
 <body>
@@ -167,6 +169,17 @@
     if (instances.length) requestAnimationFrame(frame); else running = false;
   }
 
+  // ---- Speaky maskotu (durumlu) ----
+  var SPK = {normal:'speaky/neutral.webp', yaziyor:'speaky/yaziyor.webp', dinliyor:'speaky/dinliyor.webp', hata:'speaky/hata.webp'};
+  var spkPre = {}, spkImg = null, currentName = '';
+  Object.keys(SPK).forEach(function(k){ var im = new Image(); im.src = SPK[k]; spkPre[k] = im; });
+  // durum: normal | yaziyor | dinliyor | hata
+  window.speaky = function(state){
+    if (currentName !== 'speaky' || !spkImg) return;
+    var src = SPK[state] || SPK.normal;
+    if (spkImg.getAttribute('src') !== src) spkImg.setAttribute('src', src);
+  };
+
   function clear(){
     if (lot){ try { lot.destroy(); } catch(e) {} lot = null; }
     box.innerHTML = ''; box.className = '';
@@ -174,8 +187,16 @@
 
   // Ikonu degistir: sparky | chatbot | ucak | kaykay | muzik
   window.show = function(name){
-    name = (name || 'sparky').toLowerCase();
+    name = (name || 'speaky').toLowerCase();
     clear();
+    currentName = name;
+    if (name === 'speaky'){
+      box.className = 'speaky';
+      spkImg = document.createElement('img'); spkImg.alt = 'Speaky';
+      spkImg.setAttribute('src', SPK.normal); box.appendChild(spkImg);
+      return;
+    }
+    spkImg = null;
     if (name !== 'sparky' && window.lottie && window.LOT && LOT[name]){
       var d = document.createElement('div'); d.className = 'lot'; box.appendChild(d);
       var ZOOM = {ucak:1.9, chatbot:1.15}; if (ZOOM[name]) d.style.transform = 'scale(' + ZOOM[name] + ')';
@@ -190,7 +211,7 @@
 
   img.onload = function(){ imgReady = true; };
   img.src = IMG_SRC;
-  var first = (location.hash || '').replace('#', '') || 'sparky';
+  var first = (location.hash || '').replace('#', '') || 'speaky';
   if (img.complete && img.naturalWidth) imgReady = true;
   window.show(first);
   window.addEventListener('hashchange', function(){ window.show(location.hash.replace('#', '')); });

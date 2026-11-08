@@ -137,7 +137,8 @@ public class MainActivity extends Activity {
                 "• TV yeniden başladığında uygulama kendiliğinden açılır.\n"
                 + "• İzin ekranı TV'nizde yoksa bilgisayardan bir kere şu komutu çalıştırın:\n"
                 + "   adb shell appops set " + getPackageName() + " SYSTEM_ALERT_WINDOW allow\n"
-                + "• Adres değişirse (modem yeniden başlarsa) bu ekranı açıp yeni adresi görebilirsiniz.");
+                + "• Adres değişirse (modem yeniden başlarsa) bu ekranı açıp yeni adresi görebilirsiniz.\n"
+                + "• Speaky maskot animasyonları: github.com/bedriyan/speaky (MIT lisansı).");
     }
 
     private void openOverlaySettings() {

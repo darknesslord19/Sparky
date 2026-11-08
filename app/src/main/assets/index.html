@@ -60,7 +60,7 @@
         border-radius:12px;padding:10px 4px;cursor:pointer}
   .tabs button.active{background:rgba(143,227,255,.22);border-color:var(--accent)}
   .pane{display:none}.pane.active{display:block}
-  .icons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .icons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
   .ic{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;
       border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.18)}
   .ic[aria-pressed="true"]{border-color:var(--accent);background:rgba(143,227,255,.16);box-shadow:0 0 0 1px var(--accent) inset}
@@ -165,9 +165,10 @@
   // ayarlari hatirla
   $('name').value = store('name') || 'Sparky';
   // ---- canli ikon secici ----
-  var ICONS = [['sparky','Sparky'],['chatbot','Sohbet Botu'],['ucak','Kağıt Uçak'],['kaykay','Kaykaylı Kuş'],['muzik','Müzikli Kuş']];
-  var currentIcon = store('icon') || 'sparky';
-  if (!ICONS.some(function(i){ return i[0] === currentIcon; })) currentIcon = 'sparky';
+  var ICONS = [['speaky','Speaky'],['sparky','Sparky'],['chatbot','Sohbet Botu'],['ucak','Kağıt Uçak'],['kaykay','Kaykaylı Kuş'],['muzik','Müzikli Kuş']];
+  if (store('iconv') !== '2'){ store('icon','speaky'); store('iconv','2'); }
+  var currentIcon = store('icon') || 'speaky';
+  if (!ICONS.some(function(i){ return i[0] === currentIcon; })) currentIcon = 'speaky';
   ICONS.forEach(function(it){
     var b = document.createElement('button'); b.type = 'button'; b.className = 'ic'; b.id = 'ic-' + it[0];
     b.setAttribute('aria-pressed', it[0] === currentIcon ? 'true' : 'false');

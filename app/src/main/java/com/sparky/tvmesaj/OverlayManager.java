@@ -77,15 +77,17 @@ public class OverlayManager {
         int seconds;
         boolean sound;
         String icon;
+        String state; // maskot durumu zorla (ornegin "hata")
     }
 
     /** Telefondan secilebilen ikonlar (assets/web/icon.html icinde). */
-    public static final String[] ICONS = {"sparky", "chatbot", "ucak", "kaykay", "muzik"};
+    public static final String[] ICONS = {"speaky", "sparky", "chatbot", "ucak", "kaykay", "muzik"};
 
     private WebView web;
     private boolean webFailed, webLoaded;
-    private String pendingIcon = "sparky";
-    private String curIcon = "sparky";
+    private String pendingIcon = "speaky";
+    private String curIcon = "speaky";
+    private String pendingState = "normal";
 
     public OverlayManager(Context ctx) {
         this.ctx = ctx.getApplicationContext();
@@ -120,7 +122,7 @@ public class OverlayManager {
     }
 
     private void post(Msg m) {
-        m.icon = prefs.getString("icon", "sparky");
+        m.icon = prefs.getString("icon", "speaky");
         main.post(() -> {
             queue.add(m);
             if (!busy) next();
@@ -140,7 +142,7 @@ public class OverlayManager {
             queue.clear();
             return;
         }
-        curIcon = m.icon == null ? "sparky" : m.icon;
+        curIcon = safeIcon(m.icon);
         try {
             if (m.sound && m.kind != 2) chime();
             switch (m.kind) {
@@ -174,6 +176,12 @@ public class OverlayManager {
         View banner = buildBanner(m.name, m.text);
         addWindow(banner, false);
         long typing = typeIn(banner, banner, 450);
+        if (m.state != null) {
+            mascot(m.state);
+        } else {
+            mascot("yaziyor");
+            mascotLater(banner, "normal", typing);
+        }
         hideLater(banner, typing + m.seconds * 1000L);
     }
 
@@ -206,6 +214,8 @@ public class OverlayManager {
         col.addView(banner);
         addWindow(col, false);
         long typing = typeIn(col, banner, 450);
+        mascot("yaziyor");
+        mascotLater(col, "normal", typing);
         hideLater(col, typing + m.seconds * 1000L);
     }
 
@@ -268,12 +278,14 @@ public class OverlayManager {
                 player.setAudioStreamType(AudioManager.STREAM_MUSIC);
             }
             player.setDataSource(ctx, Uri.fromFile(f));
+            mascot("dinliyor");
             player.setOnPreparedListener(mp -> {
                 mp.start();
                 tickProgress(ring);
             });
             player.setOnCompletionListener(mp -> {
                 ring.setProgress(1f);
+                mascot("normal");
                 f.delete();
                 hideLater(root, 700);
             });
@@ -296,7 +308,7 @@ public class OverlayManager {
 
     private void enqueueFront(String name, String text) {
         Msg e = new Msg();
-        e.kind = 0; e.name = name; e.text = text; e.seconds = 6;
+        e.kind = 0; e.name = name; e.text = text; e.seconds = 6; e.state = "hata";
         queue.addFirst(e);
         busy = false;
         next();
@@ -366,7 +378,7 @@ public class OverlayManager {
 
     private static String safeIcon(String icon) {
         if (icon != null) for (String k : ICONS) if (k.equals(icon)) return k;
-        return "sparky";
+        return "speaky";
     }
 
     private WebView getWeb() {
@@ -388,10 +400,10 @@ public class OverlayManager {
                 @Override
                 public void onPageFinished(WebView v, String url) {
                     webLoaded = true;
-                    v.evaluateJavascript("window.show&&show('" + pendingIcon + "')", null);
+                    v.evaluateJavascript("window.show&&show('" + pendingIcon + "');window.speaky&&speaky('" + pendingState + "')", null);
                 }
             });
-            w.loadUrl("file:///android_asset/web/icon.html#sparky");
+            w.loadUrl("file:///android_asset/web/icon.html#speaky");
             web = w;
             return w;
         } catch (Throwable t) {
@@ -408,10 +420,25 @@ public class OverlayManager {
         pendingIcon = safeIcon(icon);
         if (w.getParent() instanceof ViewGroup) ((ViewGroup) w.getParent()).removeView(w);
         w.onResume();
+        pendingState = "normal";
         if (webLoaded) w.evaluateJavascript("window.show&&show('" + pendingIcon + "')", null);
         FrameLayout f = new FrameLayout(ctx);
         f.addView(w, new FrameLayout.LayoutParams(size, size));
         return f;
+    }
+
+    /** Speaky maskotunun durumunu degistirir: normal | yaziyor | dinliyor | hata */
+    private void mascot(String state) {
+        pendingState = state;
+        if (web != null && webLoaded && "speaky".equals(curIcon)) {
+            web.evaluateJavascript("window.speaky&&speaky('" + state + "')", null);
+        }
+    }
+
+    private void mascotLater(final View owner, final String state, long ms) {
+        main.postDelayed(() -> {
+            if (current == owner) mascot(state);
+        }, ms);
     }
 
     private void parkWeb() {
