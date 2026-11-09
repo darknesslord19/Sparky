@@ -116,10 +116,10 @@ public class MainActivity extends Activity {
         } catch (Throwable t) {
             test.addView(text("(web bileşeni yok)", 14, 0xFFFF9A9A, false));
         }
-        TextView info = text("İkon testi: solda Speaky hareket ediyorsa ikonlar TV'de çalışıyor.\n" + webInfo(),
+        TextView testInfo = text("İkon testi: solda Speaky hareket ediyorsa ikonlar TV'de çalışıyor.\n" + webInfo(),
                 15, 0xFFCFE3F5, false);
-        info.setPadding(dp(16), 0, 0, 0);
-        test.addView(info);
+        testInfo.setPadding(dp(16), 0, 0, 0);
+        test.addView(testInfo);
         root.addView(test);
 
         LinearLayout buttons = new LinearLayout(this);
