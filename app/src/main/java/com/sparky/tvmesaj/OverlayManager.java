@@ -27,6 +27,7 @@ import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.StyleSpan;
+import android.text.style.ForegroundColorSpan;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
@@ -235,8 +236,9 @@ public class OverlayManager {
         FrameLayout root = new FrameLayout(ctx);
         GradientDrawable circle = new GradientDrawable();
         circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(0xB0405A70);
-        circle.setStroke(dp(1), 0x80FFFFFF);
+        int[] th = theme();
+        circle.setColor((alpha() << 24) | th[1]);
+        circle.setStroke(dp(1), th[2]);
         root.setBackground(circle);
 
         final RingView ring = new RingView(ctx);
@@ -354,13 +356,15 @@ public class OverlayManager {
         String head = name + " ile Mesaj: ";
         sb.append(head);
         sb.setSpan(new StyleSpan(Typeface.BOLD), 0, head.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sb.setSpan(new ForegroundColorSpan(theme()[4]), 0, head.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         sb.append(text);
         tv.setTag(sb);
         tv.setText("");
         tv.setVisibility(View.GONE);
-        tv.setTextColor(0xFFFFFFFF);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
-        tv.setShadowLayer(3, 0, 1, 0x55000000);
+        tv.setTextColor(theme()[3]);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSp());
+        if (lightTheme()) tv.setShadowLayer(0, 0, 0, 0);
+        else tv.setShadowLayer(3, 0, 1, 0x55000000);
         tv.setMaxWidth((int) (screenW() * 0.70f));
         tv.setMaxLines(4);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
@@ -563,11 +567,46 @@ public class OverlayManager {
         return t;
     }
 
+    // ---------------- temalar ----------------
+    // {ust renk, alt renk, kenar (ARGB), yazi (ARGB), baslik (ARGB)}
+    public static final String[] THEMES = {"buz", "gece", "cam", "mor", "sinema", "gunbatimi", "orman"};
+
+    private int[] theme() {
+        switch (prefs.getString("tema", "buz")) {
+            case "gece":      return new int[]{0x1F2A3A, 0x0D131C, 0x40FFFFFF, 0xFFEAF2FF, 0xFF8FE3FF};
+            case "cam":       return new int[]{0xF7F9FC, 0xDDE4EE, 0xFFFFFFFF, 0xFF1A2433, 0xFF2F68A8};
+            case "mor":       return new int[]{0x8A5CF0, 0x4B2AA8, 0x99D9C8FF, 0xFFFFFFFF, 0xFFFFE08A};
+            case "sinema":    return new int[]{0x1A1A1A, 0x050505, 0xAAE3B65A, 0xFFF5F0E6, 0xFFE3B65A};
+            case "gunbatimi": return new int[]{0xFF9A5B, 0xD9437A, 0x99FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
+            case "orman":     return new int[]{0x3A9C78, 0x1C5E46, 0x99C8FFE6, 0xFFFFFFFF, 0xFFE8FFD9};
+            default:          return new int[]{0x9CC0E2, 0x6F9CCB, 0xCCFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF};
+        }
+    }
+
+    private int alpha() {
+        int o = prefs.getInt("opak", 85);
+        return Math.max(30, Math.min(100, o)) * 255 / 100;
+    }
+
+    private boolean lightTheme() {
+        return "cam".equals(prefs.getString("tema", "buz"));
+    }
+
+    private float textSp() {
+        switch (prefs.getString("boyut", "o")) {
+            case "k": return 17f;
+            case "b": return 25f;
+            default: return 20f;
+        }
+    }
+
     private GradientDrawable glass(int radius) {
+        int[] t = theme();
+        int a = alpha() << 24;
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xD99CC0E2, 0xD96F9CCB});
+                new int[]{a | t[0], a | t[1]});
         g.setCornerRadius(radius);
-        g.setStroke(dp(1), 0xCCFFFFFF);
+        g.setStroke(dp(1), t[2]);
         return g;
     }
 

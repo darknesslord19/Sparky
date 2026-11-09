@@ -21,6 +21,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.webkit.WebView;
+import android.content.pm.PackageInfo;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -99,6 +101,27 @@ public class MainActivity extends Activity {
         status.setPadding(0, dp(18), 0, dp(12));
         root.addView(status);
 
+        // Ikon testi: TV'nin web bileseni canli ikonu gosterebiliyor mu?
+        LinearLayout test = new LinearLayout(this);
+        test.setGravity(Gravity.CENTER_VERTICAL);
+        test.setPadding(0, 0, 0, dp(12));
+        try {
+            WebView wv = new WebView(this);
+            wv.getSettings().setJavaScriptEnabled(true);
+            wv.getSettings().setAllowFileAccess(true);
+            wv.setBackgroundColor(0x00000000);
+            wv.setFocusable(false);
+            wv.loadUrl("file:///android_asset/web/icon.html#speaky");
+            test.addView(wv, new LinearLayout.LayoutParams(dp(96), dp(96)));
+        } catch (Throwable t) {
+            test.addView(text("(web bileşeni yok)", 14, 0xFFFF9A9A, false));
+        }
+        TextView info = text("İkon testi: solda Speaky hareket ediyorsa ikonlar TV'de çalışıyor.\n" + webInfo(),
+                15, 0xFFCFE3F5, false);
+        info.setPadding(dp(16), 0, 0, 0);
+        test.addView(info);
+        root.addView(test);
+
         LinearLayout buttons = new LinearLayout(this);
         buttons.setGravity(Gravity.CENTER);
         permBtn = button("Üstte gösterme izni ver", v -> openOverlaySettings());
@@ -139,6 +162,17 @@ public class MainActivity extends Activity {
                 + "   adb shell appops set " + getPackageName() + " SYSTEM_ALERT_WINDOW allow\n"
                 + "• Adres değişirse (modem yeniden başlarsa) bu ekranı açıp yeni adresi görebilirsiniz.\n"
                 + "• Speaky maskot animasyonları: github.com/bedriyan/speaky (MIT lisansı).");
+    }
+
+    private String webInfo() {
+        try {
+            if (Build.VERSION.SDK_INT >= 26) {
+                PackageInfo pi = WebView.getCurrentWebViewPackage();
+                if (pi != null) return "Web bileşeni: " + pi.packageName + " " + pi.versionName;
+            }
+        } catch (Throwable ignored) {
+        }
+        return "Android " + Build.VERSION.RELEASE;
     }
 
     private void openOverlaySettings() {

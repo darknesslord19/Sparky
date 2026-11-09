@@ -67,6 +67,16 @@
   .ic iframe{width:100%;aspect-ratio:1;border:0;pointer-events:none;background:transparent;border-radius:24%}
   .ic span{font-size:11px;color:var(--muted);text-align:center;line-height:1.1}
   .ic[aria-pressed="true"] span{color:var(--text);font-weight:700}
+  .themes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .th{all:unset;box-sizing:border-box;cursor:pointer;border-radius:12px;padding:12px 4px;text-align:center;font-size:12px;font-weight:700;border:2px solid transparent}
+  .th[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
+  .pv{margin-top:14px;border-radius:16px;padding:12px 16px;font-size:15px;border:1px solid;display:flex;align-items:center;gap:10px;min-height:52px;
+      background-color:#0b1724}
+  .pvwrap{border-radius:16px;padding:14px;background:linear-gradient(135deg,#3b5876,#0d1a28)}
+  .seg{display:flex;gap:6px}
+  .seg button{flex:1;font:inherit;font-size:14px;color:var(--text);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;padding:9px 4px;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:rgba(143,227,255,.22);border-color:var(--accent)}
+  input[type=range]{width:100%;accent-color:#8fe3ff}
 </style>
 </head>
 <body>
@@ -93,6 +103,21 @@
   <div class="card">
     <label>Mesajla birlikte görünecek canlı ikon</label>
     <div class="icons" id="icons"></div>
+  </div>
+
+  <div class="card">
+    <label>Mesaj balonunun görünümü</label>
+    <div class="themes" id="themes"></div>
+    <div class="pvwrap"><div class="pv" id="pv"><span id="pvText"><b id="pvHead">Speaky ile Mesaj:</b> Bu akşam sinema keyfi yapalım mı? 🍿</span></div></div>
+    <div class="opts">
+      <div>
+        <label>Yazı boyutu</label>
+        <div class="seg" id="sizeSeg"><button type="button" data-v="k">Küçük</button><button type="button" data-v="o">Orta</button><button type="button" data-v="b">Büyük</button></div>
+      </div>
+    </div>
+    <label for="opak" style="margin-top:12px">Balon dolgunluğu (düşük = daha saydam): <span id="opakVal"></span></label>
+    <input type="range" id="opak" min="30" max="100" step="5">
+    <button class="btn ghost" id="tryBtn" type="button">📺 TV'de dene</button>
   </div>
 
   <div class="card">
@@ -182,6 +207,50 @@
     $('icons').appendChild(b);
   });
 
+  // ---- balon gorunumu ----
+  var THEMES = [
+    ['buz','Buz',['#9CC0E2','#6F9CCB'],'#ffffff','#ffffff','rgba(255,255,255,.8)'],
+    ['gece','Gece',['#1F2A3A','#0D131C'],'#EAF2FF','#8FE3FF','rgba(255,255,255,.25)'],
+    ['cam','Cam',['#F7F9FC','#DDE4EE'],'#1A2433','#2F68A8','#ffffff'],
+    ['mor','Mor',['#8A5CF0','#4B2AA8'],'#ffffff','#FFE08A','rgba(217,200,255,.6)'],
+    ['sinema','Sinema',['#1A1A1A','#050505'],'#F5F0E6','#E3B65A','rgba(227,182,90,.67)'],
+    ['gunbatimi','Gün Batımı',['#FF9A5B','#D9437A'],'#ffffff','#ffffff','rgba(255,255,255,.6)'],
+    ['orman','Orman',['#3A9C78','#1C5E46'],'#ffffff','#E8FFD9','rgba(200,255,230,.6)']
+  ];
+  var look = {tema: store('tema') || 'buz', boyut: store('boyut') || 'o', opak: store('opak') || '85'};
+  function lookQs(){ return '&tema=' + look.tema + '&boyut=' + look.boyut + '&opak=' + look.opak; }
+  function hexA(h, a){ var n = parseInt(h.slice(1), 16); return 'rgba(' + (n>>16&255) + ',' + (n>>8&255) + ',' + (n&255) + ',' + a + ')'; }
+  function renderLook(){
+    var t = THEMES.filter(function(x){ return x[0] === look.tema; })[0] || THEMES[0], a = (+look.opak) / 100;
+    var pv = $('pv');
+    pv.style.backgroundImage = 'linear-gradient(' + hexA(t[2][0], a) + ',' + hexA(t[2][1], a) + ')';
+    pv.style.backgroundColor = 'transparent';
+    pv.style.borderColor = t[5]; pv.style.color = t[3]; $('pvHead').style.color = t[4];
+    pv.style.fontSize = ({k:'13px', o:'15px', b:'18px'})[look.boyut];
+    document.querySelectorAll('.th').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.v === look.tema ? 'true' : 'false'); });
+    document.querySelectorAll('#sizeSeg button').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.v === look.boyut ? 'true' : 'false'); });
+    $('opak').value = look.opak; $('opakVal').textContent = '%' + look.opak;
+  }
+  function saveLook(){
+    store('tema', look.tema); store('boyut', look.boyut); store('opak', look.opak);
+    renderLook();
+    tfetch('/api/ayar?x=1' + lookQs(), {method:'POST'}, 5000).catch(function(){});
+  }
+  THEMES.forEach(function(t){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'th'; b.dataset.v = t[0]; b.textContent = t[1];
+    b.style.background = 'linear-gradient(' + t[2][0] + ',' + t[2][1] + ')'; b.style.color = t[3];
+    b.addEventListener('click', function(){ look.tema = t[0]; saveLook(); });
+    $('themes').appendChild(b);
+  });
+  document.querySelectorAll('#sizeSeg button').forEach(function(b){ b.addEventListener('click', function(){ look.boyut = b.dataset.v; saveLook(); }); });
+  $('opak').addEventListener('input', function(){ look.opak = $('opak').value; renderLook(); });
+  $('opak').addEventListener('change', function(){ look.opak = $('opak').value; saveLook(); });
+  $('tryBtn').addEventListener('click', function(){
+    var body = params({text: 'Görünüm denemesi ✨'});
+    post('/api/send?pos=' + encodeURIComponent($('pos').value) + '&icon=' + currentIcon + lookQs(), body, $('tryBtn'), 'Görünüm denemesi', 'TV\'de gösteriliyor');
+  });
+  renderLook();
+
   if (store('posv') !== '2'){ store('pos','center'); store('posv','2'); }
   ['sec','pos'].forEach(function(k){ var v = store(k); if(v) $(k).value = v; });
   if (store('sound') === '0') $('sound').checked = false;
@@ -199,6 +268,7 @@
     p.set('sec', $('sec').value);
     p.set('pos', $('pos').value);
     p.set('icon', currentIcon);
+    p.set('tema', look.tema); p.set('boyut', look.boyut); p.set('opak', look.opak);
     p.set('sound', $('sound').checked ? '1' : '0');
     for (var k in extra) p.set(k, extra[k]);
     return p;
@@ -273,7 +343,7 @@
     var t = $('msg').value.trim();
     if (!t){ toast('Önce bir mesaj yaz ✏️', false); return; }
     var body = params({text: t});
-    post('/api/send?pos=' + encodeURIComponent($('pos').value) + '&icon=' + currentIcon, body, $('sendText'), t, 'TV\'de gösteriliyor')
+    post('/api/send?pos=' + encodeURIComponent($('pos').value) + '&icon=' + currentIcon + lookQs(), body, $('sendText'), t, 'TV\'de gösteriliyor')
       .then(function(ok){ if (ok) $('msg').value = ''; });
   });
   $('msg').addEventListener('keydown', function(e){ if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('sendText').click(); } });

@@ -1,6 +1,7 @@
 package com.sparky.tvmesaj;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import java.io.BufferedInputStream;
@@ -180,6 +181,19 @@ public class WebServer extends Thread {
             ctx.getSharedPreferences("sparky", Context.MODE_PRIVATE).edit().putString("pos", pos).apply();
         }
 
+        // gorunum ayarlari: tema, yazi boyutu, saydamlik
+        SharedPreferences.Editor ed = ctx.getSharedPreferences("sparky", Context.MODE_PRIVATE).edit();
+        boolean changed = false;
+        String tema = query.get("tema");
+        if (tema != null) for (String k : OverlayManager.THEMES) if (k.equals(tema)) { ed.putString("tema", k); changed = true; }
+        String boyut = query.get("boyut");
+        if ("k".equals(boyut) || "o".equals(boyut) || "b".equals(boyut)) { ed.putString("boyut", boyut); changed = true; }
+        try {
+            if (query.get("opak") != null) { ed.putInt("opak", Math.max(30, Math.min(100, Integer.parseInt(query.get("opak"))))); changed = true; }
+        } catch (NumberFormatException ignored) {
+        }
+        if (changed) ed.commit();
+
         String icon = query.get("icon");
         if (icon != null) {
             for (String k : OverlayManager.ICONS) {
@@ -212,6 +226,11 @@ public class WebServer extends Thread {
             } catch (IOException e) {
                 send(out, 404, "text/plain; charset=utf-8", "Bulunamadi".getBytes(StandardCharsets.UTF_8));
             }
+            return;
+        }
+
+        if ("POST".equals(method) && "/api/ayar".equals(path)) {
+            send(out, 200, "application/json", json(true, "Kaydedildi"));
             return;
         }
 
